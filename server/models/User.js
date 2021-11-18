@@ -1,16 +1,36 @@
-const mongoose = require('mongoose');
-
-const { Schema } = mongoose;
+const { Schema } = mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
-const Order = require('./Order');
 
-const userSchema = new Schema({
-  firstName: {
+const prescriptionSchema = new Schema({
+  user: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    }
+  ],
+  name: {
     type: String,
     required: true,
     trim: true
   },
-  lastName: {
+  synonym: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  rxcui: {
+    type: Number,
+    required: true
+  },
+  perDay: {
+    type: Number,
+    min: 0,
+    default: 0
+  },
+});
+
+const userSchema = new Schema({
+  name: {
     type: String,
     required: true,
     trim: true
@@ -25,7 +45,12 @@ const userSchema = new Schema({
     required: true,
     minlength: 5
   },
-  orders: [Order.schema]
+  prescriptions: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'Prescription'
+    }
+  ]
 });
 
 // set up pre-save middleware to create password
@@ -44,5 +69,6 @@ userSchema.methods.isCorrectPassword = async function(password) {
 };
 
 const User = mongoose.model('User', userSchema);
+const Prescription = mongoose.model('Prescription', prescriptionSchema);
 
-module.exports = User;
+module.exports = { User, Prescription };

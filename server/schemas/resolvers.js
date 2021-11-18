@@ -1,89 +1,38 @@
 const { AuthenticationError } = require('apollo-server-express');
-const { User, Product, Category, Order } = require('../models');
+const { User, Prescription } = require('../models');
 const { signToken } = require('../utils/auth');
+const axios = require('axios');
 
 const resolvers = {
   Query: {
-    categories: async () => {
-      return await Category.find();
+    scriptSearch: async (_, { name }) => {
+      res = await axios.get(`https://rxnav.nlm.nih.gov/REST/drugs.json`, {
+        params: {
+          name
+        }
+      });
+      let resultArray = [];
+      res.data.drugGroup.conceptGroup?.forEach(group => {
+        group.conceptProperties?.forEach(drug => resultArray.push(drug))
+      });
+      return resultArray;
     },
-    products: async (parent, { category, name }) => {
-      const params = {};
-
-      if (category) {
-        params.category = category;
-      }
-
-      if (name) {
-        params.name = {
-          $regex: name
-        };
-      }
-
-      return await Product.find(params).populate('category');
+    user: async (_, { _id }) => {
+      return await User.find(_id ? { _id } : {}).populate('prescriptions')
     },
-    product: async (parent, { _id }) => {
-      return await Product.findById(_id).populate('category');
-    },
-    user: async (parent, args, context) => {
-      if (context.user) {
-        const user = await User.findById(context.user._id).populate({
-          path: 'orders.products',
-          populate: 'category'
-        });
-
-        user.orders.sort((a, b) => b.purchaseDate - a.purchaseDate);
-
-        return user;
+    me: async (_, __, { user }) => {
+      if (user) {
+        return User.findById(user).populate('prescriptions');
       }
-
-      throw new AuthenticationError('Not logged in');
-    },
-    order: async (parent, { _id }, context) => {
-      if (context.user) {
-        const user = await User.findById(context.user._id).populate({
-          path: 'orders.products',
-          populate: 'category'
-        });
-
-        return user.orders.id(_id);
-      }
-
       throw new AuthenticationError('Not logged in');
     }
   },
   Mutation: {
-    addUser: async (parent, args) => {
-      const user = await User.create(args);
-      const token = signToken(user);
-
-      return { token, user };
+    addUser: async (_, params) => {
+      const user = await User.create(params);
+      return { user, token: signToken(user) };
     },
-    addOrder: async (parent, { products }, context) => {
-      console.log(context);
-      if (context.user) {
-        const order = new Order({ products });
-
-        await User.findByIdAndUpdate(context.user._id, { $push: { orders: order } });
-
-        return order;
-      }
-
-      throw new AuthenticationError('Not logged in');
-    },
-    updateUser: async (parent, args, context) => {
-      if (context.user) {
-        return await User.findByIdAndUpdate(context.user._id, args, { new: true });
-      }
-
-      throw new AuthenticationError('Not logged in');
-    },
-    updateProduct: async (parent, { _id, quantity }) => {
-      const decrement = Math.abs(quantity) * -1;
-
-      return await Product.findByIdAndUpdate(_id, { $inc: { quantity: decrement } }, { new: true });
-    },
-    login: async (parent, { email, password }) => {
+    login: async (_, { email, password }) => {
       const user = await User.findOne({ email });
 
       if (!user) {
@@ -96,11 +45,44 @@ const resolvers = {
         throw new AuthenticationError('Incorrect credentials');
       }
 
-      const token = signToken(user);
-
-      return { token, user };
+      return { user, token: signToken(user) };
+    },
+    addPrescription: async (_, params, context) => {
+      if (context.user) {
+        const prescription = await Prescription.create(params);
+        const user = await User.findByIdAndUpdate(context.user, {
+          $push: { prescriptions: prescription._id }
+        }, { new: true }).populate('prescriptions');
+        return user;
+      }
+      throw new AuthenticationError('Not logged in');
+    },
+    updatePrescription: async (_, { _id, perDay }, context) => {
+      if (context.user) {
+        return await Prescription.findByIdAndUpdate(_id, { perDay }, { new: true });
+      }
+      throw new AuthenticationError('Not logged in');
+    },
+    deletePrescription: async (_, { _id }, { user }) => {
+      if (user) {
+        return await Prescription.findByIdAndDelete(_id);
+      }
+      throw new AuthenticationError('Not logged in');
+    },
+    nuke: async () => {
+      await User.deleteMany();
+      await Prescription.deleteMany();
+      return {
+        message: 'DB Wiped'
+      }
     }
   }
-};
+}
+
+
+// nameResponse = await fetch(`https://rxnav.nlm.nih.gov/REST/drugs.json?name=${name}`);
+
+// imageResponse = await fetch(`https://rximage.nlm.nih.gov/api/rximage/1/rxnav?rxcui=${nameResponse.drugGroup.conceptGroup[1].conceptProperties[0].rxcui}`)
+
 
 module.exports = resolvers;

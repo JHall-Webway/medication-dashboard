@@ -1,0 +1,26 @@
+$primary: #087E8B;
+$secondary: #BFD7EA;
+$success: #4CB944;
+$danger: #C81D25;
+$warning: #FF6700;
+$info: #AE76A6;
+$light: #FFE66D;
+$dark: #0B3954;
+
+@import '../../node_modules/bootstrap/scss/bootstrap';
+
+body {
+    background-image: url('../assets/background.jpg');
+    background-size: cover;
+    margin: auto;
+};
+
+#home-button {
+    background-image: url('../assets/background.jpg');
+};
+#home-button:hover {
+    background-color: $info;
+};
+#searchBar {
+    text-decoration: none;
+};

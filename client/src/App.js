@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Route, Switch } from 'react-router-dom';
+
 import {
   ApolloClient,
   InMemoryCache,
@@ -8,13 +9,13 @@ import {
 } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 
-import Home from './pages/Home';
-import Detail from './pages/Detail';
-import NoMatch from './pages/NoMatch';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
+import { Provider } from 'react-redux';
+import store from './utils/globalState';
+
 import Nav from './components/Nav';
-import OrderHistory from './pages/OrderHistory';
+import Dashboard from './pages/Dashboard';
+import Login from './pages/Login';
+import Register from './pages/Register';
 
 const httpLink = createHttpLink({
   uri: '/graphql',
@@ -38,19 +39,17 @@ const client = new ApolloClient({
 function App() {
   return (
     <ApolloProvider client={client}>
-      <Router>
-        <div>
-          <Nav />
-          <Switch>
-            <Route exact path="/" component={Home} />
-            <Route exact path="/login" component={Login} />
-            <Route exact path="/signup" component={Signup} />
-            <Route exact path="/orderHistory" component={OrderHistory} />
-            <Route exact path="/products/:id" component={Detail} />
-            <Route component={NoMatch} />
-          </Switch>
-        </div>
-      </Router>
+        <Provider store={store}>
+          <Router>
+            <Nav />
+            <Switch>
+              <Route exact path='/' component={Dashboard} />
+              <Route exact path='/login' component={Login} />
+              <Route exact path='/register' component={Register} />
+              <Route component={Dashboard} />
+            </Switch>
+          </Router>
+        </Provider>
     </ApolloProvider>
   );
 }
